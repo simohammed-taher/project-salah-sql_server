@@ -10,6 +10,7 @@ const DB_CONFIG = {
     encrypt: true, // Use this if you're on Azure*
     instanceName: process.env.DB_INSTANCE,
     trustServerCertificate: true,
+    requestTimeout: 0,
   },
 };
 console.log(DB_CONFIG);
