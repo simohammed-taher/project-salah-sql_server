@@ -1,15 +1,39 @@
 const sql = require("mssql");
 const config = require("../config");
-exports.getAllTables = async (req, res) => {
+exports.getTable = async (req, res) => {
   try {
-    await sql.connect(config);
-    const result = await sql.query`SELECT * FROM sys.tables`;
-    res.status(201).json(result["recordsets"][0]);
+    const nameTable = req.params.nameTable;
+    const pool = await sql.connect(config);
+
+    const result = await pool.request().query(`
+      SELECT * FROM ${nameTable} 
+    `);
+
+    res.status(200).json({
+      result1: result.recordset,
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).send({ err: "err" });
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
+exports.getFunc = async (req, res) => {
+  try {
+    const pool = await sql.connect(config);
+    // console.log(`SELECT [dbo].[testTT] ()`);
+    const result = await pool.request().query(`
+     SELECT * FROM [dbo].[ObtenirTableauErreur] ()
+    `);
+
+    res.status(200).json({
+      result1: result.recordset,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
 //create table
 exports.createTable = async (req, res) => {
   const { tableName, columns } = req.body;
