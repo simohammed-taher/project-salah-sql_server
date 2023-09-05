@@ -7,7 +7,7 @@ const DB_CONFIG = {
   server: process.env.DB_SERVER,
   database: process.env.DB_DATABASE,
   options: {
-    encrypt: true, // Use this if you're on Azure*
+    encrypt: true,
     instanceName: process.env.DB_INSTANCE,
     trustServerCertificate: true,
     requestTimeout: 0,
