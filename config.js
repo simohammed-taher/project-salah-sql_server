@@ -13,5 +13,5 @@ const DB_CONFIG = {
     requestTimeout: 0,
   },
 };
-console.log(DB_CONFIG);
+// console.log(DB_CONFIG);
 module.exports = DB_CONFIG;
