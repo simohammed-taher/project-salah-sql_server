@@ -6,5 +6,7 @@ router.get("/table/function", controllers.getFunc);
 router.post("/table/users", controllers.getUsers);
 router.get("/table/:nameTable", controllers.getTable);
 router.post("/login", controllers.loginUser);
+router.post("/reset-password", controllers.resetPassword);
+router.post("/reset-oldpassword", controllers.resetOldPassword);
 
 module.exports = router;

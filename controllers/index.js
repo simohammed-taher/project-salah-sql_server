@@ -1,7 +1,6 @@
 const sql = require("mssql");
 const config = require("../config");
 const bcrypt = require("bcrypt");
-// const jwt = require("jsonwebtoken");
 // Function to get a table from the database
 exports.getTable = async (req, res) => {
   try {
@@ -58,22 +57,27 @@ exports.getFunc = async (req, res) => {
 exports.loginUser = async (req, res) => {
   try {
     const { username, password } = req.body;
-    console.log({ password });
     const pool = await sql.connect(config);
-    let query =
-      "SELECT * FROM Users WHERE username = @username AND password = @password";
-    const result = await pool
+
+    const checkUserQuery = `
+      SELECT * FROM [DB_Integration].[dbo].[Users]
+      WHERE [username] = @username 
+    `;
+    const userResult = await pool
       .request()
       .input("username", sql.NVarChar, username)
-      .input("password", sql.NVarChar, password)
-      .query(query);
-    console.log({ result });
-    const user = result.recordsets[0];
-    const user1 = result.recordset[0];
-    console.log({ user, user1 });
+      .query(checkUserQuery);
+
+    const user = userResult.recordset[0];
 
     if (!user) {
-      return res.status(401).json({ error: "Invalid username or password" });
+      return res.status(404).json({ error: "User or Password is incorrect" });
+    }
+
+    const isValid = await bcrypt.compare(password, user.password);
+
+    if (!isValid) {
+      return res.status(401).json({ error: "User or Password is incorrect" });
     }
 
     res.status(200).json({ message: "Login successful" });
@@ -87,8 +91,8 @@ exports.loginUser = async (req, res) => {
 exports.getUsers = async (req, res) => {
   try {
     const { username } = req.body;
-    console.log(req.body);
-    console.log({ username });
+    // console.log(req.body);
+    // console.log({ username });
     const pool = await sql.connect(config);
     let query = `
       SELECT [username]
@@ -99,13 +103,13 @@ exports.getUsers = async (req, res) => {
     if (username !== "admin") {
       query += " WHERE [username] = @username";
     }
-    console.log({ query });
+    // console.log({ query });
     const result = await pool
       .request()
       .input("username", sql.NVarChar, username)
       .query(query);
 
-    console.log({ result });
+    // console.log({ result });
     res.status(200).json({
       result1: result.recordset,
     });
@@ -114,3 +118,71 @@ exports.getUsers = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+// Function to reset a user's password
+exports.resetPassword = async (req, res) => {
+  try {
+    const { username, newPassword } = req.body;
+    const pool = await sql.connect(config);
+    const newPasswordHashed = await bcrypt.hash(newPassword, 10);
+    console.log({ newPasswordHashedAdmin: newPasswordHashed });
+    const resetPasswordQuery = `
+      UPDATE [DB_Integration].[dbo].[Users] 
+      SET [password] = @newPasswordHashed
+      WHERE [username] = @username
+    `;
+    await pool
+      .request()
+      .input("username", sql.NVarChar, username)
+      .input("newPasswordHashed", sql.NVarChar, newPasswordHashed)
+      .query(resetPasswordQuery);
+    // console.log({ resetPasswordQuery });
+
+    res.status(200).json({ message: "Password reset successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+// Function to reset a user's oldpassword
+exports.resetOldPassword = async (req, res) => {
+  try {
+    const { username, oldPassword, newPassword } = req.body;
+    const pool = await sql.connect(config);
+    const checkOldPasswordQuery = `
+    SELECT * FROM [DB_Integration].[dbo].[Users]
+      WHERE [username] = @username 
+    `;
+    const result = await pool
+      .request()
+      .input("username", sql.NVarChar, username)
+      .query(checkOldPasswordQuery);
+
+    const user = result.recordset?.[0] ?? null;
+    if (!user) {
+      return res.status(404).json({ error: "User or Password is incorrect" });
+    }
+
+    let isValid = await bcrypt.compare(oldPassword, user.password);
+    if (!isValid) {
+      return res.status(401).json({ error: "User or Password is incorrect" });
+    }
+
+    let newPasswordHashed = await bcrypt.hash(newPassword, 10);
+    const resetPasswordQuery = `
+      UPDATE [DB_Integration].[dbo].[Users]
+      SET [password] = @newPasswordHashed
+      WHERE [username] = @username
+    `;
+    await pool
+      .request()
+      .input("username", sql.NVarChar, username)
+      .input("newPasswordHashed", sql.NVarChar, newPasswordHashed)
+      .query(resetPasswordQuery);
+
+    res.status(200).json({ message: "Password reset successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+//
