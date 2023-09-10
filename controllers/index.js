@@ -7,19 +7,23 @@ exports.getTable = async (req, res) => {
     const nameTable = req.params.nameTable;
     const startDate = req.query.startDate;
     const endDate = req.query.endDate;
+    const username = req.query.username;
 
     const pool = await sql.connect(config);
+
+    let query = `SELECT * FROM ${nameTable} WHERE [DatePiece] >= @startDate AND [DatePiece] <= @endDate `;
+
+    if (username !== "admin") {
+      query +=
+        "AND [Etablissement] IN (SELECT [etablissement] FROM [dbo].[maping] WHERE username = @username)";
+    }
 
     const result = await pool
       .request()
       .input("startDate", sql.Date, startDate)
       .input("endDate", sql.Date, endDate)
-      .query(
-        `
-        SELECT * FROM ${nameTable}
-        WHERE [DatePiece] >= @startDate AND [DatePiece] <= @endDate
-        `
-      );
+      .input("username", sql.NVarChar, username)
+      .query(query);
 
     res.status(200).json({
       result1: result.recordset,
@@ -29,7 +33,6 @@ exports.getTable = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
-
 // Function to get a function result from the database
 exports.getFunc = async (req, res) => {
   try {
@@ -185,4 +188,171 @@ exports.resetOldPassword = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
-//
+// Function to get a table maping result from the database
+exports.getMaping = async (req, res) => {
+  try {
+    const { username } = req.body;
+    const pool = await sql.connect(config);
+    let query = "";
+
+    if (username === "admin") {
+      query =
+        "SELECT E.Caption, M.etablissement,U.username FROM [DB_Integration].[dbo].[ETABLISSEMENT] AS E JOIN [DB_Integration].[dbo].[maping] AS M ON E.code = M.etablissement JOIN [DB_Integration].[dbo].[Users] AS U ON M.username = U.username";
+    } else {
+      query = `
+        SELECT E.Caption, M.etablissement
+        FROM [DB_Integration].[dbo].[ETABLISSEMENT] AS E
+        JOIN [DB_Integration].[dbo].[maping] AS M ON E.code = M.etablissement
+        JOIN [DB_Integration].[dbo].[Users] AS U ON M.username = U.username
+        WHERE U.username = @username;
+      `;
+    }
+
+    const result = await pool
+      .request()
+      .input("username", sql.NVarChar, username)
+      .query(query);
+
+    res.status(200).json({
+      result1: result.recordset,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+// function to insert a new etablissement on table maping
+exports.insertEtablissement = async (req, res) => {
+  try {
+    const pool = await sql.connect(config);
+
+    const { code, username, etablissement } = req.body;
+
+    const query = `
+      SET IDENTITY_INSERT [maping] off
+      INSERT INTO [dbo].[maping] ( [username], [etablissement])
+      VALUES ( @username, @etablissement)
+    `;
+
+    const result = await pool
+      .request()
+      .input("code", sql.NVarChar, code)
+      .input("username", sql.NVarChar, username)
+      .input("etablissement", sql.NVarChar, etablissement)
+      .query(query);
+
+    if (result.rowsAffected.length > 0 && result.rowsAffected[0] === 1) {
+      console.log("New etablissement inserted successfully.");
+      res.status(200).json({
+        success: true,
+        message: "New etablissement inserted successfully.",
+      });
+    } else {
+      console.error("Failed to insert new etablissement.");
+      res.status(500).json({
+        success: false,
+        message: "Failed to insert new etablissement.",
+      });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "An error occurred." });
+  }
+};
+// function to delete etablissement
+exports.deleteEtablissement = async (req, res) => {
+  try {
+    const pool = await sql.connect(config);
+    const { etablissement } = req.body;
+
+    const query = `
+      DELETE FROM [dbo].[maping]
+      WHERE [etablissement] = @etablissement
+    `;
+
+    const result = await pool
+      .request()
+      .input("etablissement", sql.NVarChar, etablissement)
+      .query(query);
+
+    if (result.rowsAffected.length > 0 && result.rowsAffected[0] === 1) {
+      console.log("Etablissement deleted successfully.");
+      res.status(200).json({
+        success: true,
+        message: "Etablissement deleted successfully.",
+      });
+    } else {
+      console.error("Etablissement not found or could not be deleted.");
+      res.status(404).json({
+        success: false,
+        message: "Etablissement not found or could not be deleted.",
+      });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "An error occurred." });
+  }
+};
+// Function to exucute Procedure  database
+exports.execprocedure = async (req, res) => {
+  try {
+    const pool = await sql.connect(config);
+    let query = "EXEc  [dbo].[UPDATE_INTEGRATION]";
+    const result = await pool.request().query(query);
+    res.status(200).json({
+      result1: result.recordset,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+// Function to getdbintegration
+exports.getdbinte = async (req, res) => {
+  try {
+    const pool = await sql.connect(config);
+    const startDate = req.query.startDate;
+    const endDate = req.query.endDate;
+    const username = req.query.username; // Assuming username is in the query parameters
+    let query =
+      "SELECT [DatePiece], [Etablissement], [Code_Journal], SUM([Debit]) as 'Debit', SUM([Credit]) as 'Credit' FROM [DB_Integration].[dbo].[DB_Integration] WHERE [DatePiece] >= @startDate AND [DatePiece] <= @endDate";
+
+    if (username !== "admin") {
+      query +=
+        " AND [Etablissement] IN (SELECT [etablissement] FROM [dbo].[maping] WHERE username = @username)";
+    }
+
+    query +=
+      " GROUP BY [DatePiece], [Etablissement], [Code_Journal] ORDER BY [DatePiece], [Etablissement], [Code_Journal];";
+
+    const result = await pool
+      .request()
+      .input("startDate", sql.Date, startDate)
+      .input("endDate", sql.Date, endDate)
+      .input("username", sql.NVarChar, username)
+      .query(query);
+
+    res.status(200).json({
+      result1: result.recordset,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+// Function to aficher username and etablisment
+exports.user_etab = async (req, res) => {
+  try {
+    const pool = await sql.connect(config);
+    let query = "select username from Users select code from ETABLISSEMENT";
+    let query1 = "select code from ETABLISSEMENT";
+    const result = await pool.request().query(query);
+    const result1 = await pool.request().query(query1);
+    res.status(200).json({
+      result: [result.recordset, result1.recordset],
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
