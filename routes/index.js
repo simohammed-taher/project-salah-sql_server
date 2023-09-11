@@ -10,6 +10,7 @@ router.delete("/deleteEtablissement", controllers.deleteEtablissement);
 router.get("/table/getdbinte", controllers.getdbinte);
 router.get("/actualiser", controllers.execprocedure);
 router.get("/user_etab", controllers.user_etab);
+router.get("/afficheruserpass", controllers.afficheruserpass);
 router.get("/table/:nameTable", controllers.getTable);
 router.post("/login", controllers.loginUser);
 router.post("/reset-password", controllers.resetPassword);

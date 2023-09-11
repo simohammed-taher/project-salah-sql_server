@@ -267,7 +267,7 @@ exports.deleteEtablissement = async (req, res) => {
 
     const query = `
       DELETE FROM [dbo].[maping]
-      WHERE [etablissement] = @etablissement
+      WHERE [etablissement] = @etablissement 
     `;
 
     const result = await pool
@@ -344,12 +344,27 @@ exports.getdbinte = async (req, res) => {
 exports.user_etab = async (req, res) => {
   try {
     const pool = await sql.connect(config);
-    let query = "select username from Users select code from ETABLISSEMENT";
+    let query = "select username from Users";
     let query1 = "select code from ETABLISSEMENT";
     const result = await pool.request().query(query);
     const result1 = await pool.request().query(query1);
     res.status(200).json({
       result: [result.recordset, result1.recordset],
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+// Function to affivher toutes les username and password pour suprimer
+exports.afficheruserpass = async (req, res) => {
+  try {
+    const pool = await sql.connect(config);
+    let query =
+      "SELECT [username],[etablissement] FROM [DB_Integration].[dbo].[maping]";
+    const result = await pool.request().query(query);
+    res.status(200).json({
+      result1: result.recordset,
     });
   } catch (err) {
     console.error(err);
